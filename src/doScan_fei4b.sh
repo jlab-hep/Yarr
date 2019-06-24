@@ -15,14 +15,13 @@ target_tot=9
 target_preamp=14941
 target_charge=2668
 mask=-1
-dbUse=false
 getlog=false
 
 function usage {
     cat <<EOF
 
 Usage:
-    ./$(basename ${0}) [-m SN*] [-s Scan*] [-r Controller] [-n Connectivity] [-c Charge] [-t Tot] [-p Preamp] [-M mask] [-d] [-l]
+    ./$(basename ${0}) [-m SN*] [-s Scan*] [-r Controller] [-n Connectivity] [-c Charge] [-t Tot] [-p Preamp] [-M mask] [-d db user account] [-l]
 
 Options:
     -m <str>      serial number (*req.)
@@ -33,13 +32,13 @@ Options:
     -t <int>      target tot for tune_preamp        default: 9
     -p <int>      target preamp for tune_preamp     default: 14941
     -M <int>      pixel masking: -1=enable(default), 0=disable, 1=reset
-    -d            upload into databse
+    -d <str>      upload into databse
     -l            unsave log
 
 EOF
 }
 
-while getopts m:s:r:n:c:t:p:M:dlI: OPT
+while getopts m:s:r:n:c:t:p:M:d:lI: OPT
 do
     case ${OPT} in
         m ) mod_id=${OPTARG} ;;
@@ -50,7 +49,7 @@ do
         t ) target_tot=${OPTARG} ;;
         p ) target_preamp=${OPTARG} ;;
         M ) mask=${OPTARG} ;;
-        d ) dbUse=true ;;
+        d ) db_account=${OPTARG} ;;
         l ) getlog=false ;;
         I ) database=${OPTARG} ;;
         * ) usage
@@ -109,15 +108,16 @@ if [ ! -f ${connectivity} ]; then
 fi
 
 # environmental config
-if "${dbUse}"; then
-    if [ -z ${database} ]; then
-        database=${HOME}/.yarr/database.json
+if [ ! -z ${db_account} ]; then
+    if [ ! -z ${database} ]; then
+        if [ ! -f ${database} ]; then
+            echo "Not exist database config file \"${database}\"."
+            usage
+            exit
+        fi
+        database="-I ${database}"
     fi
-    if [ ! -f ${database} ]; then
-        echo "Not exist database config file \"${database}\"."
-        usage
-        exit
-    fi
+    db_account="-W ${db_account}"
 fi
 
 # set target charge/preamp/tot
@@ -146,10 +146,5 @@ else
 fi
 
 # scanConsole
-if ${dbUse}; then
-    echo "./bin/scanConsole -r ${controller} -c ${connectivity} -p -t ${target_amp_or_charge} ${target_tot} -s ${scan_type} -m ${mask} -W" 
-    ./bin/scanConsole -r ${controller} -c ${connectivity} -p -t ${target_amp_or_charge} ${target_tot} -s ${scan_type} -m ${mask} -W 
-else
-    echo "./bin/scanConsole -r ${controller} -c ${connectivity} -p -t ${target_amp_or_charge} ${target_tot} -s ${scan_type} -m ${mask}"
-    ./bin/scanConsole -r ${controller} -c ${connectivity} -p -t ${target_amp_or_charge} ${target_tot} -s ${scan_type} -m ${mask}
-fi
+echo "./bin/scanConsole -r ${controller} -c ${connectivity} -p -t ${target_amp_or_charge} ${target_tot} -s ${scan_type} -m ${mask} ${db_account} ${database}"
+./bin/scanConsole -r ${controller} -c ${connectivity} -p -t ${target_amp_or_charge} ${target_tot} -s ${scan_type} -m ${mask} ${db_account} ${database}
